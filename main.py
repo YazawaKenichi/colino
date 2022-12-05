@@ -4,8 +4,8 @@ import sys
 import cv2
 import numpy as np
 
-# UI = True
-UI = False
+UI = True
+# UI = False
 
 SPECTRUM_FILENAME = './data'
 FILENAMEDEF = './result.png'
@@ -29,7 +29,7 @@ def openfile(filename_, ui = True):
         for line in f:
             lines.append(line)
     if ui:
-        print(filename_ + "を取得")
+        print(filename_ + " を取得")
     return lines
 
 # 文字列のリストからスペース区切りで辞書型配列を作成する
@@ -79,7 +79,7 @@ def makeimage(rgb, width = WIDTH, height = HEIGHT):
 def writeimage(img, filename = FILENAMEDEF, ui = True):
     cv2.imwrite(filename, img)
     if ui:
-        print(filename + "に保存")
+        print(filename + " に保存")
 
 # 画像を表示
 def showimage(filename = FILENAMEDEF, ui = True):
@@ -92,8 +92,10 @@ def showimage(filename = FILENAMEDEF, ui = True):
 
 
 if __name__ == '__main__':
+    # 引数の個数と文字列を取得
     argc, argv = get_args()
 
+    # 引数にファイルが与えられている場合はそのファイルをデータファイルに設定
     spectrum_filename = ""
     if argc == 1:
         spectrum_filename = SPECTRUM_FILENAME
@@ -102,20 +104,30 @@ if __name__ == '__main__':
     else:
         print("引数が多すぎます", file = sys.stderr)
         print("example:", file = sys.stderr)
-        print(argv[0] + "data", file = sys.stderr)
+        print(argv[0] + " data", file = sys.stderr)
         sys.exit(1)
 
+    # データファイルから各行を取り出す
     elements = openfile(spectrum_filename, ui = UI)
+    # スペース区切りで辞書型配列を作成する
     elemdict = mkdict(elements)
+    # 辞書型配列から RGB の波長の部分だけ取り出す
     rgbdict = getrgb(elemdict, ui = UI)
+    # 百分率で表された値を分数に変換する
     rgbrate = p2f(rgbdict.values())
+    # 反射率から光の強さを計算する
     rgb = rtt(rgbrate)
     if UI:
         print("rgb : ", end = "")
+    # RGB 値の結果を表示する
     print(tuple(rgb))
+    # RGB 値で指定した画像型オブジェクトを作成する
     image = makeimage(rgb)
+    # 画像を保存する
     writeimage(image, ui = UI)
-    showimage(ui = UI)
+    # 保存された画像を開く
+    if UI:
+        showimage(ui = UI)
 
 
 
