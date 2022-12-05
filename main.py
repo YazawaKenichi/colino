@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # coding: utf-8
+# SPDX-FileCopyrightText: YAZAWA Kenichi (2022)
+# SPDX-License-Identifier: Apache License 2.0
+
 import sys
 import cv2
 import numpy as np
