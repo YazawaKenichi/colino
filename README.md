@@ -9,6 +9,10 @@
     - NumPy : 1.19.3
 
 ## 使用方法
+0. `SciPy` が導入されていない場合はインストールします
+    ```
+    python3 -m pip install scipy
+    ```
 1. このリポジトリを適当な場所にクローン
     ```
     git clone https://github.com/yazawakenichi/colno

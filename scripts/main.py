@@ -6,12 +6,13 @@
 import sys
 import cv2
 import numpy as np
+import Interpolation
 
-UI = True
-# UI = False
+# UI = True
+UI = False
 
-SPECTRUM_FILENAME = './data'
-FILENAMEDEF = './result.png'
+SPECTRUM_FILENAME = '../data/data1'
+FILENAMEDEF = '../result.png'
 WIDTH = 500
 HEIGHT = 400
 
