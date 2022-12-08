@@ -6,13 +6,15 @@
 import sys
 import cv2
 import numpy as np
-import Interpolation
+from scipy.interpolate import interp1d
+import pandas as pd
 
-# UI = True
-UI = False
+UI = True
+# UI = False
 
-SPECTRUM_FILENAME = '../data/data1'
+SPECTRUM_PATH = '../data/data'
 FILENAMEDEF = '../result.png'
+CMF_FILE_PATH = '../cmf/cmf.csv'
 WIDTH = 500
 HEIGHT = 400
 
@@ -20,14 +22,24 @@ RED_LAMBDA = 700
 GREEN_LAMBDA = 550
 BLUE_LAMBDA = 450
 
+########## 与えられた引数の解析 ##########
 # 引数を解析し、個数とリストを返す
 def get_args():
     argv = sys.argv
     argc = len(sys.argv)
     return argc, argv
 
-# ファイルを開き、中の文章を取り出す
-def openfile(filename_, ui = True):
+########## x 軸での昇順ソート ##########
+# (x, y) において x の大きさでソートする
+def x_sort(list_):
+    df = pd.DataFrame(list_, columns = ['x', 'y'], index = [ str(i) for i in range(len(list_)) ])
+    _list = df.sort_values('x')
+    _list_ = _list.values.tolist()
+    return _list_
+
+########## CSV ファイルに対する操作のための関数 ##########
+# csv ファイルを開いて一行ずつのリストを取得する
+def opencsv(filename_, ui = True):
     with open(filename_) as f:
         lines = []
         for line in f:
@@ -36,49 +48,117 @@ def openfile(filename_, ui = True):
         print(filename_ + " を取得")
     return lines
 
-# 文字列のリストからスペース区切りで辞書型配列を作成する
-def mkdict(anylist):
-    res = {}
+# csv 一行ずつのリストから行列を作成する
+def mklist(anylist, splitchar = " ", ui = True):
+    res = []
     for line in anylist:
-        list_ = line.split()
-        key = format(float(list_[0]), '.2f')
-        value = float(list_[1])
-        res[key] = value
+        list_ = line.split(splitchar)
+        x = float(list_[0])
+        y = float(list_[1])
+        if ui :
+            print([x, y])
+        res.append([x, y])
     return res
 
-# スペクトルの辞書から赤緑青の波長の値を取り出す
-def getrgb(anydict, ui = True):
-    global RED_LAMBDA, GREEN_LAMBDA, BLUE_LAMBDA
-    red_lambda = format(float(RED_LAMBDA), '.2f')
-    green_lambda = format(float(GREEN_LAMBDA), '.2f')
-    blue_lambda = format(float(BLUE_LAMBDA), '.2f')
-    rgb = {'red': anydict[red_lambda], 'green': anydict[green_lambda], 'blue': anydict[blue_lambda]}
-    if ui:
-        print("red wavelength = " + red_lambda + " [nm]")
-        print("green wavelength = " + green_lambda + " [nm]")
-        print("blue wavelength = " + blue_lambda + " [nm]")
-        print("rgb rate = ", end = "")
-        print(rgb, end = "")
-        print(" [%]")
-    return rgb
+### CSV ファイルから行列を作成する
+def csv2list(filename_, splitchar = " ", ui = True):
+    somelist = opencsv(filename_, ui)
+    csvlist = mklist(somelist, splitchar, ui)
+    print(csvlist)
+    return csvlist
 
-# 百分率で与えられたリストを分数に変換
-def p2f(anylist):
-    return [ v / 100 for v in anylist ]
+########## 離散データから三次スプライン補間された関数を取り出す ##########
+# 補間された関数の生成
+def generate_function(list_):
+    _list = list_
+    # x のリストのみ取り出す
+    x = [ v[0] for v in _list ]
+    # y のリストのみ取り出す
+    y = [ v[1] for v in _list ]
+    # 三次スプライン補間
+    function = interp1d(x, y, kind = "cubic")
+    return function
 
-# rgb 割合を 255 倍し、小数部分は四捨五入
-def rtt(rgbrate):
-    return [ round(v * 255) for v in rgbrate ]
+########## 等色関数を求める ##########
+def cmf(dim, lambda_):
+    global CMF_FILE_PATH
+    # CSV データから波長対強さの行列を作成する ファイル名は決め打ち
+    cmf_datalist = csv2list("../cmf/cmf.csv", ",", False)
+    # CSV データから波長の部分だけ取り出したリストを作成する
+    cmf_datalist_lambda = [ float(v[0]) for v in cmf_datalist ]
+    cmf_datalist_xyz = []
+    if dim == 'x':
+        # CSV データから x の部分だけを取り出したリストを作成する
+        cmf_datalist_xyz = [ float(v[1]) for v in cmf_datalist ]
+    if dim == 'y':
+        # ↓ ここでエラー cmf_datalist が二列しか無いことが原因
+        # どうやら csv を取得する時に E の部分で次の行に移動してる？＞ , で区切れてない
+        # CSV データから y の部分だけを取り出したリストを作成する
+        cmf_datalist_xyz = [ float(v[2]) for v in cmf_datalist ]
+    if dim == 'z':
+        # CSV データから z の部分だけを取り出したリストを作成する
+        cmf_datalist_xyz = [ float(v[3]) for v in cmf_datalist ]
+    cmf_datalist_xyz_lambda = []
+    for v, l in enumerate(cmf_datalist_lambda):
+        cmf_datalist_xyz_lambda.append([l, cmf_datalist_xyz[v]])
+    # bar_x または bar_y または bar_z の近似関数を求める
+    bar = generate_function(cmf_datalist_xyz_lambda)
+    if min(cmf_datalist_lambda) <= lambda_ and lambda_ < max(cmf_datalist_lambda):
+        return bar(lambda_)
+    return 0
 
-# タプルに変換 # 未使用
-def d2t(anydict):
-    return tuple(anydict.values())
+########## xyz 値から rgb 画像を生成する ##########
+# スペクトル行列から XYZ の値を積分して求める
+def getXYZ(spector):
+    # 波長のリストを取得
+    spector_lambda = [ v[0] for v in spector ]
+    # 反射率のリストを取得
+    spaector_reflect = [ v[1] for v in spector ]
+    # 反射率スペクトルの近似関数を取得
+    l = generate_function(spector)
+    ##### 積分する #####
+    before_lambda = spector_lambda[0]
+    x = y = z = 0
+    for i in range(1, len(spector_lambda)):
+        # 微小時間ならぬ、微小波長を取り出す
+        _lambda = spector_lambda[i]
+        d_lambda = _lambda - before_lambda
+        # 波長が _lambda の時の等色関数の解
+        x_bar = cmf('x', _lambda)
+        y_bar = cmf('y', _lambda)
+        z_bar = cmf('z', _lambda)
+        # 実際に積分計算をする（離散データのリストなので積分は総和と同意）
+        X += x_bar * l(_lambda) * d_lambda
+        Y += y_bar * l(_lambda) * d_lambda
+        Z += z_bar * l(_lambda) * d_lambda
+    return X, Y, Z
 
-# RGB 配列から画像を生成
-def makeimage(rgb, width = WIDTH, height = HEIGHT):
-    result = np.full((height, width, 3), (rgb[2], rgb[1], rgb[0]))
+# XYZ 値から xyz 値を求める すなわち色温度を求める
+def getxyz(X, Y, Z):
+    x = X / (X + Y + Z)
+    y = Y / (X + Y + Z)
+    z = Z / (X + Y + Z)
+    return x, y, z
+
+# xyz 値から画像を生成
+def makeimagexyz(x, y, z, width = WIDTH, height = HEIGHT):
+    result = np.full((height, width, 3), (x, y, z))
     return result
 
+# xyz 画像を rgb 画像に変換
+def xyz2rgb(img):
+    image_ = cv2.cvtColor(img, cv2.COLOR_XYZ2RGB)
+    return image_
+
+# 処理をまとめた関数
+def spectrum2img(spector, width, height):
+    X, Y, Z = getXYZ(spector)
+    x, y, z = getxyz(X, Y, Z)
+    img = makeimagexyz(x, y, z, width, height)
+    image = xyz2rgb(img)
+    return image
+
+########## RGB 画像を保存する ##########
 # 画像を保存
 def writeimage(img, filename = FILENAMEDEF, ui = True):
     cv2.imwrite(filename, img)
@@ -94,7 +174,7 @@ def showimage(filename = FILENAMEDEF, ui = True):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-
+########## メイン処理 ##########
 if __name__ == '__main__':
     # 引数の個数と文字列を取得
     argc, argv = get_args()
@@ -102,34 +182,19 @@ if __name__ == '__main__':
     # 引数にファイルが与えられている場合はそのファイルをデータファイルに設定
     spectrum_filename = ""
     if argc == 1:
-        spectrum_filename = SPECTRUM_FILENAME
+        spectrum_filename = SPECTRUM_PATH
     elif argc == 2:
         spectrum_filename = argv[1]
     else:
         print("引数が多すぎます", file = sys.stderr)
         print("example:", file = sys.stderr)
         print(argv[0] + " data", file = sys.stderr)
-        sys.exit(1)
 
-    # データファイルから各行を取り出す
-    elements = openfile(spectrum_filename, ui = UI)
-    # スペース区切りで辞書型配列を作成する
-    elemdict = mkdict(elements)
-    # 辞書型配列から RGB の波長の部分だけ取り出す
-    rgbdict = getrgb(elemdict, ui = UI)
-    # 百分率で表された値を分数に変換する
-    rgbrate = p2f(rgbdict.values())
-    # 反射率から光の強さを計算する
-    rgb = rtt(rgbrate)
-    if UI:
-        print("rgb : ", end = "")
-    # RGB 値の結果を表示する
-    print(tuple(rgb))
-    # RGB 値で指定した画像型オブジェクトを作成する
-    image = makeimage(rgb)
-    # 画像を保存する
-    writeimage(image, ui = UI)
-    # 保存された画像を開く
+    spectrum = csv2list(SPECTRUM_PATH, " ", False)
+    spectrum = x_sort(spectrum)
+    image = spectrum2img(spectrum, WIDTH, HEIGHT)
+    writeimage(image)
+
     if UI:
         showimage(ui = UI)
 
