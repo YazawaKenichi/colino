@@ -53,18 +53,16 @@ def mklist(anylist, splitchar = " ", ui = True):
     res = []
     for line in anylist:
         list_ = line.split(splitchar)
-        x = float(list_[0])
-        y = float(list_[1])
-        if ui :
-            print([x, y])
-        res.append([x, y])
+        # x, y, z, ... の、列の並び順に配列を作成する。これが一つの行になる
+        _tmp_ = [ float(list_[i]) for i in range(len(list_)) ]
+        # 作成した一つの行を res に保存する
+        res.append(_tmp_)
     return res
 
 ### CSV ファイルから行列を作成する
 def csv2list(filename_, splitchar = " ", ui = True):
     somelist = opencsv(filename_, ui)
     csvlist = mklist(somelist, splitchar, ui)
-    print(csvlist)
     return csvlist
 
 ########## 離散データから三次スプライン補間された関数を取り出す ##########
@@ -118,7 +116,7 @@ def getXYZ(spector):
     l = generate_function(spector)
     ##### 積分する #####
     before_lambda = spector_lambda[0]
-    x = y = z = 0
+    X = Y = Z = 0
     for i in range(1, len(spector_lambda)):
         # 微小時間ならぬ、微小波長を取り出す
         _lambda = spector_lambda[i]
@@ -142,12 +140,12 @@ def getxyz(X, Y, Z):
 
 # xyz 値から画像を生成
 def makeimagexyz(x, y, z, width = WIDTH, height = HEIGHT):
-    result = np.full((height, width, 3), (x, y, z))
+    result = np.full((height, width, 3), (x * 255, y * 255, z * 255))
     return result
 
 # xyz 画像を rgb 画像に変換
 def xyz2rgb(img):
-    image_ = cv2.cvtColor(img, cv2.COLOR_XYZ2RGB)
+    image_ = cv2.cvtColor(img.astype(np.float32), cv2.COLOR_XYZ2RGB)
     return image_
 
 # 処理をまとめた関数
@@ -155,8 +153,7 @@ def spectrum2img(spector, width, height):
     X, Y, Z = getXYZ(spector)
     x, y, z = getxyz(X, Y, Z)
     img = makeimagexyz(x, y, z, width, height)
-    image = xyz2rgb(img)
-    return image
+    return img
 
 ########## RGB 画像を保存する ##########
 # 画像を保存
@@ -190,6 +187,7 @@ if __name__ == '__main__':
         print("example:", file = sys.stderr)
         print(argv[0] + " data", file = sys.stderr)
 
+    # 定義した関数を順番に処理していく
     spectrum = csv2list(SPECTRUM_PATH, " ", False)
     spectrum = x_sort(spectrum)
     image = spectrum2img(spectrum, WIDTH, HEIGHT)
