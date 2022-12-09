@@ -57,6 +57,9 @@
 - [OpenCV で新規に単色の画像を作成するシンプルな方法 - スケ郎のお話](https://www.sukerou.com/2022/05/opencv.html)
 - [Python, split でカンマ区切り文字列を分割、空白を削除しリスト化 - note.nkmk.me](https://note.nkmk.me/python-split-strip-list-join/)
 - [【Python】小数点の四捨五入、切り上げ、切り捨て (round, math.ceil, math.floor) - Hbk project](https://hibiki-press.tech/python/round_ceil_floor/903#toc3)
+- [Python3 & OpenCV で画像処理を学ぶ [1] 〜色空間を工学的に理解する〜 - Optie 研](https://optie.hatenablog.com/entry/2018/02/18/175935)
+- [[SciPy] 6. interpolate interp1d によるデータの補間 - サボテンパイソン](https://sabopy.com/py/scipy-6/#toc6)
+    - [Color & Vision Research laboratory and database - Institute of Ophthalmology](
 
 ## LICENSE
 - このソフトウェアは、Apache License 2.0 の下、再頒布および使用が許可されます。
