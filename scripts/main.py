@@ -8,6 +8,8 @@ import cv2
 import numpy as np
 from scipy.interpolate import interp1d
 import pandas as pd
+import math
+from PIL import Image
 
 UI = True
 # UI = False
@@ -17,10 +19,6 @@ FILENAMEDEF = '../result.png'
 CMF_FILE_PATH = '../cmf/cmf.csv'
 WIDTH = 500
 HEIGHT = 400
-
-RED_LAMBDA = 700
-GREEN_LAMBDA = 550
-BLUE_LAMBDA = 450
 
 ########## 与えられた引数の解析 ##########
 # 引数を解析し、個数とリストを返す
@@ -89,8 +87,6 @@ def cmf(dim, lambda_):
         # CSV データから x の部分だけを取り出したリストを作成する
         cmf_datalist_xyz = [ float(v[1]) for v in cmf_datalist ]
     if dim == 'y':
-        # ↓ ここでエラー cmf_datalist が二列しか無いことが原因
-        # どうやら csv を取得する時に E の部分で次の行に移動してる？＞ , で区切れてない
         # CSV データから y の部分だけを取り出したリストを作成する
         cmf_datalist_xyz = [ float(v[2]) for v in cmf_datalist ]
     if dim == 'z':
@@ -131,7 +127,53 @@ def getXYZ(spector):
         Z += z_bar * l(_lambda) * d_lambda
     return X, Y, Z
 
-# XYZ 値から xyz 値を求める すなわち色温度を求める
+### Lab ###
+# data を alpa から beta の間の割合に換算する
+def data2rate(alpha, beta, data):
+    return (data - alpha) / (beta - alpha)
+
+# 完全な白の時のスペクトルリストを返す
+def generateWhiteSpectorList(spector):
+    white = []
+    for lr in spector:
+        white.append([lr[0], 100])
+    return white
+
+# Y の値から L* の値を求める
+def getL(Y, Y0):
+    return 116 * math.pow(Y / Y0, 1 / 3) - 16
+
+# X Y の値から a* の値を求める
+def geta(X, Y, X0, Y0):
+    return 500 * (math.pow(X / X0, 1 / 3) - math.pow(Y / Y0, 1 / 3))
+
+# Y Z の値から b* の値を求める
+def getb(Y, Z, Y0, Z0):
+    return 200 * (math.pow(Y / Y0, 1 / 3) - math.pow(Z / Z0, 1 / 3))
+
+# XYZ 値から L*a*b* 値を求める
+def getLab(X, Y, Z, X0, Y0, Z0):
+    L = getL(Y, Y0)
+    a = geta(X, Y, X0, Y0)
+    b = getb(Y, Z, Y0, Z0)
+    return L, a, b
+
+# xyz 値から画像を生成
+def makeimageLab(L, a, b, width = WIDTH, height = HEIGHT):
+    L_rate = 255 * data2rate(-16, 100, L)
+    a_rate = 255 * data2rate(-500, 500, a)
+    b_rate = 255 * data2rate(-200, 200, b)
+    result = np.full((height, width, 3), (L_rate, a_rate, b_rate))
+    print([L_rate, a_rate, b_rate])
+    return result
+
+# Lab 画像を rgb 画像に変換
+def Lab2rgb(img):
+    image_ = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_LAB2RGB)
+    return image_
+
+### xyz ### 
+# XYZ 値から xyz 値を求める
 def getxyz(X, Y, Z):
     x = X / (X + Y + Z)
     y = Y / (X + Y + Z)
@@ -148,11 +190,20 @@ def xyz2rgb(img):
     image_ = cv2.cvtColor(img.astype(np.float32), cv2.COLOR_XYZ2RGB)
     return image_
 
+### xyz Lab 2 rgb ###
 # 処理をまとめた関数
-def spectrum2img(spector, width, height):
+def spectrum2img(spector, width, height, mode = "Lab"):
+    white = generateWhiteSpectorList(spector)
     X, Y, Z = getXYZ(spector)
-    x, y, z = getxyz(X, Y, Z)
-    img = makeimagexyz(x, y, z, width, height)
+    if mode == "Lab":
+        X0, Y0, Z0 = getXYZ(white)
+        L, a, b = getLab(X, Y, Z, X0, Y0, Z0)
+        img_Lab = makeimageLab(L, a, b, width, height)
+        img = Lab2rgb(img_Lab)
+    if mode == "xyz":
+        x, y, z = getxyz(X, Y, Z)
+        img_xyz = makeimagexyz(x, y, z, width, height)
+        img = xyz2rgb(img_xyz)
     return img
 
 ########## RGB 画像を保存する ##########
