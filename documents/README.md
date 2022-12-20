@@ -82,42 +82,20 @@ $z = \frac{Z}{X + Y + Z}$
 
 そういう理由で物理的に x, y の値はこの範囲から外に出ることはできない
 
-# OpenCV
+# CIE-L\*a\*b\* 表色系
+(X, Y, Z) で表された色を操作することを考えた時に、このままでは操作しにくい
 
-`ccv2.cvtColor(img, cv2.COLOR_XYZ2RGB)` を用いれば XYZ 色表現された画像を RGB 色表現された画像に変換することが可能
+なぜなら、XYZ 色表現のままでは歪んだ形状をしているから
 
-``` Python
-from matplotlib import pyplot as plt
-import numpy as np
-import cv2
+これを解消する方法として、XYZ を適切に変換して我々の言う「空間」と直感的に合う直行座標の三次元空間を再現する **CIE-L\*a\*b\* 表色系** というものを用いることにした
 
-IMAGE_PATH = 'image.png'
+変換公式は以下
 
-img_gbr = cv2.imread(IMAGE_PATH, 1)
-img_rgb = cv2.cvtColor(img_gbr, cv2.COLOR_BGR2RGB)
+$L^* = 116 (\frac{Y}{Y_0})^\frac{1}{3} - 16$
 
-img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
-# CIE-XYZ 表色系に変換
-img_xyz = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2XYZ)
-# CIE-L*a*b* 表色系に変換
-img_lab = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2LAB)
-# HLS 色表現に変換
-img_hls = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2HLS)
+$a^* = 500((\frac{X}{X_0})^\frac{1}{3} - (\frac{Y}{Y_0})^\frac{1}{3})$
 
-spaces = [img_rgb, img_gray, img_xyz, img_lab, img_hls]
-names = ['RGB', 'Grayscale', 'XYZ', 'L*a*b*', 'HLS']
-
-for space, name in zip(spaces, names):
-    plt.title('mopemope' + name)
-    if name=='Grayscale':
-        # GRAYの場合(width, height)の二次元配列となるため、三次元配列に変換しておく
-        space = cv2.cvtColor(space, cv2.COLOR_GRAY2RGB)
-    plt.imshow(space)
-    plt.show()
-    print('----- part of pixels -----')
-    print(space[0])
-    print('====================')
-```
+$b^* = 200((\frac{Y}{Y_0})^\frac{1}{3} - (\frac{Z}{Z_0})^\frac{1}{3})$
 
 # colino
 
