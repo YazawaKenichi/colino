@@ -9,6 +9,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 import pandas as pd
 import math
+from PIL import Image
 
 UI = True
 # UI = False
@@ -126,6 +127,18 @@ def getXYZ(spector):
         Z += z_bar * l(_lambda) * d_lambda
     return X, Y, Z
 
+### Lab ###
+# data を alpa から beta の間の割合に換算する
+def data2rate(alpha, beta, data):
+    return (data - alpha) / (beta - alpha)
+
+# 完全な白の時のスペクトルリストを返す
+def generateWhiteSpectorList(spector):
+    white = []
+    for lr in spector:
+        white.append([lr[0], 100])
+    return white
+
 # Y の値から L* の値を求める
 def getL(Y, Y0):
     return 116 * math.pow(Y / Y0, 1 / 3) - 16
@@ -147,29 +160,50 @@ def getLab(X, Y, Z, X0, Y0, Z0):
 
 # xyz 値から画像を生成
 def makeimageLab(L, a, b, width = WIDTH, height = HEIGHT):
-    result = np.full((height, width, 3), (L, a, b))
+    L_rate = 255 * data2rate(-16, 100, L)
+    a_rate = 255 * data2rate(-500, 500, a)
+    b_rate = 255 * data2rate(-200, 200, b)
+    result = np.full((height, width, 3), (L_rate, a_rate, b_rate))
+    print([L_rate, a_rate, b_rate])
+    return result
+
+# Lab 画像を rgb 画像に変換
+def Lab2rgb(img):
+    image_ = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_LAB2RGB)
+    return image_
+
+### xyz ### 
+# XYZ 値から xyz 値を求める
+def getxyz(X, Y, Z):
+    x = X / (X + Y + Z)
+    y = Y / (X + Y + Z)
+    z = Z / (X + Y + Z)
+    return x, y, z
+
+# xyz 値から画像を生成
+def makeimagexyz(x, y, z, width = WIDTH, height = HEIGHT):
+    result = np.full((height, width, 3), (x * 255, y * 255, z * 255))
     return result
 
 # xyz 画像を rgb 画像に変換
 def xyz2rgb(img):
-    image_ = cv2.cvtColor(img.astype(np.float32), cv2.COLOR_Lab2RGB)
+    image_ = cv2.cvtColor(img.astype(np.float32), cv2.COLOR_XYZ2RGB)
     return image_
 
-# 完全な白の時のスペクトルリストを返す
-def generateWhiteSpectorList(spector):
-    white = []
-    for lr in spector:
-        white.append([lr[0], 100])
-    return white
-
+### xyz Lab 2 rgb ###
 # 処理をまとめた関数
-def spectrum2img(spector, width, height):
+def spectrum2img(spector, width, height, mode = "Lab"):
     white = generateWhiteSpectorList(spector)
     X, Y, Z = getXYZ(spector)
-    X0, Y0, Z0 = getXYZ(white)
-    L, a, b = getLab(X, Y, Z, X0, Y0, Z0)
-    print([L, a, b])
-    img = makeimageLab(L, a, b, width, height)
+    if mode == "Lab":
+        X0, Y0, Z0 = getXYZ(white)
+        L, a, b = getLab(X, Y, Z, X0, Y0, Z0)
+        img_Lab = makeimageLab(L, a, b, width, height)
+        img = Lab2rgb(img_Lab)
+    if mode == "xyz":
+        x, y, z = getxyz(X, Y, Z)
+        img_xyz = makeimagexyz(x, y, z, width, height)
+        img = xyz2rgb(img_xyz)
     return img
 
 ########## RGB 画像を保存する ##########
