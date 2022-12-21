@@ -128,8 +128,18 @@ def getXYZ(spector):
     return X, Y, Z
 
 ### Lab ###
+# 二つの数字を与えた時、小, 大 の順に返す
+def sortup(alpha, beta):
+    if alpha > beta:
+        tmp = alpha
+        alpha = beta
+        beta = tmp
+    return alpha, beta
+
 # data を alpa から beta の間の割合に換算する
 def data2rate(alpha, beta, data):
+    # alpha < beta を保証させる
+    alpha, beta = sortup(alpha, beta)
     return (data - alpha) / (beta - alpha)
 
 # 完全な白の時のスペクトルリストを返す
@@ -164,12 +174,13 @@ def makeimageLab(L, a, b, width = WIDTH, height = HEIGHT):
     a_rate = 255 * data2rate(-500, 500, a)
     b_rate = 255 * data2rate(-200, 200, b)
     result = np.full((height, width, 3), (L_rate, a_rate, b_rate))
+    print("Lab : ", end = "")
     print([L_rate, a_rate, b_rate])
     return result
 
 # Lab 画像を rgb 画像に変換
 def Lab2rgb(img):
-    image_ = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_LAB2RGB)
+    image_ = cv2.cvtColor(img.astype(np.float32), cv2.COLOR_LAB2RGB)
     return image_
 
 ### xyz ### 
@@ -178,6 +189,8 @@ def getxyz(X, Y, Z):
     x = X / (X + Y + Z)
     y = Y / (X + Y + Z)
     z = Z / (X + Y + Z)
+    print("xyz : ", end = "")
+    print([x, y, z])
     return x, y, z
 
 # xyz 値から画像を生成
@@ -187,23 +200,126 @@ def makeimagexyz(x, y, z, width = WIDTH, height = HEIGHT):
 
 # xyz 画像を rgb 画像に変換
 def xyz2rgb(img):
-    image_ = cv2.cvtColor(img.astype(np.float32), cv2.COLOR_XYZ2RGB)
+    image_ = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_XYZ2RGB)
+    return image_
+
+### HSI ###
+# RGB のうち最大のものを取得
+def getImax(R, G, B):
+    return max([R, G, B])
+
+# RGB のうち最小のものを取得
+def getImin(R, G, B):
+    return min([R, G, B])
+
+def getIminImax(R, G, B):
+    Imin = getImin(R, G, B)
+    Imax = getImax(R, G, B)
+    return Imin, Imax
+
+# 明度 I を計算
+def getI(R, G, B):
+    Imin, Imax = getIminImax(R, G, B)
+    return (Imin + Imax) / 2
+
+# 彩度 S を計算
+def getS(R, G, B):
+    S = -1
+    Imin, Imax = getIminImax(R, G, B)
+    I = getI(R, G, B)
+    if I >= 0.5:
+        S = (Imax - Imin) / (Imax + Imin)
+    if I < 0.5:
+        S = (Imax - Imin) / (2 - (Imax + Imin))
+    if S == -1:
+        # エラー
+        print("error", file = sys.stderr)
+        sys.exit(1)
+    return S
+
+# 色相 H を計算
+def getH(R, G, B):
+    Imin, Imax = getIminImax(R, G, B)
+    H = 0
+    if not (Imin == Imax):
+        r = (Imax - R) / (Imax - Imin)
+        g = (Imax - G) / (Imax - Imin)
+        b = (Imax - B) / (Imax - Imin)
+        if R == Imax:
+            H = (b - g) * math.pi / 3
+        if G == Imax:
+            H = (2 + r - b) * math.pi / 3
+        if B == Imax:
+            H = (4 + g - r) * math.pi / 3
+    return H
+
+def gethsi(r, g, b):
+    i = getI(r, g, b)
+    s = getS(r, g, b)
+    h = getH(r, g, b)
+    print("HSI : ", end = "")
+    print([h, s, i])
+    return h, s, i
+
+# hsi 値から画像を生成
+def makeimagehsi(h, s, i, width = WIDTH, height = HEIGHT):
+    result = np.full((height, width, 3), (h * 255, s * 255, i * 255))
+    return result
+
+# hsi 画像を rgb 画像に変換
+def hsi2rgb(img):
+    image_ = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_HLS2RGB)
     return image_
 
 ### xyz Lab 2 rgb ###
-# 処理をまとめた関数
-def spectrum2img(spector, width, height, mode = "Lab"):
+# 生成画像の RGB 値を取得する関数
+def getrgb(image):
+    h, w, c = image.shape
+    # 画像中心のピクセル情報
+    px = image[int(h / 2), int(w / 2)]
+    b = px.T[0]
+    g = px.T[1]
+    r = px.T[2]
+    return r, g, b
+
+# スペクトルから Lab 画像を生成する
+def spectrum2img_Lab(spector, width, height):
+    X, Y, Z = getXYZ(spector)
     white = generateWhiteSpectorList(spector)
+    X0, Y0, Z0 = getXYZ(white)
+    L, a, b = getLab(X, Y, Z, X0, Y0, Z0)
+    img_Lab = makeimageLab(L, a, b, width, height)
+    img = Lab2rgb(img_Lab)
+    return img
+
+# スペクトルから XYZ 画像を生成する
+def spectrum2img_XYZ(spector, width, height):
+    X, Y, Z = getXYZ(spector)
+    x, y, z = getxyz(X, Y, Z)
+    img_xyz = makeimagexyz(x, y, z, width, height)
+    img = xyz2rgb(img_xyz)
+    return img
+
+def spectrum2img_HSI(spector, width, height):
+    """
+    X, Y, Z = getXYZ(spector)
+    h, s, i = gethsi(r, g, b)
+    img_hsi = makeimagehsi(h, s, i, width, height)
+    img = hsi2rgb(img_hsi)
+    """
+    return img
+
+# 処理をまとめた関数
+def spectrum2img(spector, width, height, mode = "xyz"):
     X, Y, Z = getXYZ(spector)
     if mode == "Lab":
-        X0, Y0, Z0 = getXYZ(white)
-        L, a, b = getLab(X, Y, Z, X0, Y0, Z0)
-        img_Lab = makeimageLab(L, a, b, width, height)
-        img = Lab2rgb(img_Lab)
+        img = spectrum2img_Lab(spector, width, height)
     if mode == "xyz":
-        x, y, z = getxyz(X, Y, Z)
-        img_xyz = makeimagexyz(x, y, z, width, height)
-        img = xyz2rgb(img_xyz)
+        img = spectrum2img_XYZ(spector, width, height)
+    # 生成画像の RGB 値を出力
+    r, g, b = getrgb(img)
+    print("RGB : ", end = "")
+    print([r, g, b])
     return img
 
 ########## RGB 画像を保存する ##########
@@ -242,7 +358,7 @@ if __name__ == '__main__':
     spectrum = csv2list(SPECTRUM_PATH, " ", False)
     spectrum = x_sort(spectrum)
     image = spectrum2img(spectrum, WIDTH, HEIGHT)
-    writeimage(image)
+    writeimage(image, ui = False)
 
     if UI:
         showimage(ui = UI)

@@ -59,7 +59,9 @@
 - [【Python】小数点の四捨五入、切り上げ、切り捨て (round, math.ceil, math.floor) - Hbk project](https://hibiki-press.tech/python/round_ceil_floor/903#toc3)
 - [Python3 & OpenCV で画像処理を学ぶ [1] 〜色空間を工学的に理解する〜 - Optie 研](https://optie.hatenablog.com/entry/2018/02/18/175935)
 - [[SciPy] 6. interpolate interp1d によるデータの補間 - サボテンパイソン](https://sabopy.com/py/scipy-6/#toc6)
-    - [Color & Vision Research laboratory and database - Institute of Ophthalmology](
+- [Color & Vision Research laboratory and database - Institute of Ophthalmology](http://www.cvrl.org)
+- [Python + OpenCV による色情報の取得 - Qiita](https://qiita.com/Zumwalt/items/4d9bc15608483fa77476)
+- [Python, OpenCV, Pillow (PIL) で画像サイズ（幅、高さ）を取得 - note.nkmk.me](https://note.nkmk.me/python-opencv-pillow-image-size/)
 
 ## LICENSE
 - このソフトウェアは、Apache License 2.0 の下、再頒布および使用が許可されます。
