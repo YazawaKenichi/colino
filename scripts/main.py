@@ -26,8 +26,27 @@ HEIGHT = 400
 ########## 与えられた引数の解析 ##########
 # 引数を解析し、個数とリストを返す
 def get_args():
-    usage = "Usage: %prog [ xyz | Lab ] [ -v "
-    # 記述途中
+    usage = "Usage: %prog [ xyz | Lab ] [ -v ] [ -o OutputFileName ]"
+    parser = OptionParser(usage = usage)
+
+    global UI
+    # -v で UI 表示をするかしないかを決める
+    parser.add_option(
+            "-v",
+            action = "store_true",
+            default = UI,
+            dest = "visualize"
+            )
+
+    global FILENAMEDEF
+    # -o で 出力ファイル名を指定する
+    parser.add_option(
+            "-o",
+            type = "string",
+            default = FILENAMEDEF,
+            dest = "output"
+            )
+    return parser.parse_args()
 
 ########## x 軸での昇順ソート ##########
 # (x, y) において x の大きさでソートする
@@ -234,6 +253,10 @@ def showimage(filename = FILENAMEDEF, ui = True):
 ########## メイン処理 ##########
 if __name__ == '__main__':
     optiondict, args = get_args()
+    print(args)
+    image_format = MODE
+    if not len(args) == 0:
+        image_format = args
 
     # 引数にファイルが与えられている場合はそのファイルをデータファイルに設定
     spectrum_filename = ""
@@ -252,7 +275,7 @@ if __name__ == '__main__':
     # 波長を小さい順に並べ替える
     spectrum = x_sort(spectrum)
     # スペクトルから単色の画像を作成する
-    image = spectrum2img(spectrum, WIDTH, HEIGHT, mode = MODE)
+    image = spectrum2img(spectrum, WIDTH, HEIGHT, mode = image_format)
     # 画像を保存する
     writeimage(image)
     if UI:
