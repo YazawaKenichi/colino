@@ -4,16 +4,19 @@
 # SPDX-License-Identifier: Apache License 2.0
 
 import sys
-import cv2
+import copy
+import math
+from optparse import OptionParser
+import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
-import pandas as pd
-import math
+import cv2
 from PIL import Image
 
 UI = True
 # UI = False
 
+MODE = "xyz"
 SPECTRUM_PATH = '../data/data'
 FILENAMEDEF = '../result.png'
 CMF_FILE_PATH = '../cmf/cmf.csv'
@@ -23,9 +26,8 @@ HEIGHT = 400
 ########## 与えられた引数の解析 ##########
 # 引数を解析し、個数とリストを返す
 def get_args():
-    argv = sys.argv
-    argc = len(sys.argv)
-    return argc, argv
+    usage = "Usage: %prog [ xyz | Lab ] [ -v "
+    # 記述途中
 
 ########## x 軸での昇順ソート ##########
 # (x, y) において x の大きさでソートする
@@ -195,15 +197,22 @@ def xyz2rgb(img):
 def spectrum2img(spector, width, height, mode = "Lab"):
     white = generateWhiteSpectorList(spector)
     X, Y, Z = getXYZ(spector)
-    if mode == "Lab":
+    if mode == "Lab" or mode == "average":
         X0, Y0, Z0 = getXYZ(white)
         L, a, b = getLab(X, Y, Z, X0, Y0, Z0)
         img_Lab = makeimageLab(L, a, b, width, height)
         img = Lab2rgb(img_Lab)
-    if mode == "xyz":
+        if mode == "average":
+            img_Lab_tmp = copy.copy(img)
+    if mode == "xyz" or mode == "average":
         x, y, z = getxyz(X, Y, Z)
         img_xyz = makeimagexyz(x, y, z, width, height)
         img = xyz2rgb(img_xyz)
+        if mode == "average":
+            img_xyz_tmp = copy.copy(img)
+    if mode == "average":
+        img = (img_xyz_tmp + img_Lab_tmp) / 2
+        img = img.astype(np.uint8)
     return img
 
 ########## RGB 画像を保存する ##########
@@ -224,8 +233,7 @@ def showimage(filename = FILENAMEDEF, ui = True):
 
 ########## メイン処理 ##########
 if __name__ == '__main__':
-    # 引数の個数と文字列を取得
-    argc, argv = get_args()
+    optiondict, args = get_args()
 
     # 引数にファイルが与えられている場合はそのファイルをデータファイルに設定
     spectrum_filename = ""
@@ -239,16 +247,15 @@ if __name__ == '__main__':
         print(argv[0] + " data", file = sys.stderr)
 
     # 定義した関数を順番に処理していく
+    # CSV ファイルから 波長 と 反射率 を対応させたスペクトルのリストを作成
     spectrum = csv2list(SPECTRUM_PATH, " ", False)
+    # 波長を小さい順に並べ替える
     spectrum = x_sort(spectrum)
-    image = spectrum2img(spectrum, WIDTH, HEIGHT)
+    # スペクトルから単色の画像を作成する
+    image = spectrum2img(spectrum, WIDTH, HEIGHT, mode = MODE)
+    # 画像を保存する
     writeimage(image)
-
     if UI:
+        # 画像を表示する
         showimage(ui = UI)
-
-
-
-
-
 

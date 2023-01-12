@@ -5,13 +5,16 @@
 ## 動作環境
 - OS : Ubuntu 20.04
 - Python : 3.8.10
-    - OpenCV : 4.6.0
-    - NumPy : 1.19.3
+    - Pandas : 1.5.2
+    - NumPy : 1.24.1
+    - SciPy : 1.10.0
+    - OpenCV : 4.7.0
+    - Pillow : 9.0.1
 
 ## 使用方法
-0. `SciPy` が導入されていない場合はインストールします
+0. 必要なライブラリをインストールします
     ```
-    python3 -m pip install scipy
+    python3 -m pip install pandas numpy scipy opencv-python pillow
     ```
 1. このリポジトリを適当な場所にクローン
     ```
