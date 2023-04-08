@@ -66,4 +66,4 @@
 
 ## LICENSE
 - このソフトウェアは、Apache License 2.0 の下、再頒布および使用が許可されます。
-- (C) 2023 YAZAWA Kenichi
+- (C) 2022 YAZAWA Kenichi
